@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NexusConnect Pro - Chat, Video Call & Live GPS</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- PeerJS for WebRTC P2P Video Calling & Real-time Data Sync -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { background-color: #0b0f19; color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; height: 100dvh; }
+    #map { height: 100%; width: 100%; border-radius: 0.75rem; z-index: 10; }
+    .glass { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+    .pulse-ring { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen w-screen select-none">
+
+  <!-- Top Navigation Bar -->
+  <header class="glass px-4 py-3 flex items-center justify-between border-b border-slate-800 z-30">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <i data-lucide="radio" class="w-5 h-5 text-white"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-base tracking-tight text-white">NexusConnect Pro</h1>
+          <span id="statusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Connecting...</span>
+        </div>
+        <p class="text-[11px] text-slate-400">Your ID: <span id="myPeerIdDisplay" class="font-mono text-cyan-400 font-semibold select-all">Generating...</span></p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button onclick="copyInviteLink()" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-medium flex items-center gap-1.5 transition">
+        <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+        <span class="hidden sm:inline">WhatsApp Invite</span>
+      </button>
+      <button onclick="openConnectModal()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition">
+        <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+        <span>Connect Friend</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 flex overflow-hidden relative">
+
+    <!-- Chat View -->
+    <section id="tab-chat" class="flex-1 flex flex-col h-full bg-slate-950/60">
+      <!-- Friend Connection Banner -->
+      <div class="px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-ring"></span>
+          <span id="connectedPeerLabel" class="text-slate-300">Active Mode: <strong class="text-white">Aarav AI Companion + P2P Ready</strong></span>
+        </div>
+        <button onclick="shareLiveLocation()" class="text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Share GPS
+        </button>
+      </div>
+
+      <!-- Messages Container -->
+      <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-3">
+        <div class="text-center my-2">
+          <span class="text-[11px] px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+            End-to-End WebRTC P2P Chat, Video & Live GPS Active
+          </span>
+        </div>
+      </div>
+
+      <!-- Message Input Bar -->
+      <div class="p-3 glass border-t border-slate-800 flex items-center gap-2">
+        <button onclick="shareLiveLocation()" title="Send Live GPS" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 transition">
+          <i data-lucide="navigation" class="w-5 h-5"></i>
+        </button>
+        <input id="msgInput" type="text" placeholder="Type a message..." class="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" onkeydown="if(event.key==='Enter') sendMessage()" />
+        <button onclick="sendMessage()" class="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition">
+          <i data-lucide="send" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Video Call View -->
+    <section id="tab-video" class="hidden flex-1 flex flex-col h-full bg-slate-950 p-4 relative">
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+        <!-- Remote Video -->
+        <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center">
+          <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover hidden"></video>
+          <div id="remotePlaceholder" class="text-center p-6">
+            <div class="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto mb-3">
+              <i data-lucide="video" class="w-7 h-7 text-slate-400"></i>
+            </div>
+            <p class="text-sm font-semibold text-slate-300">Waiting for Friend's Video Stream</p>
+            <p class="text-xs text-slate-500 mt-1">Enter your friend's ID via "Connect Friend" and tap Start Call</p>
+          </div>
+          <span class="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-black/60 text-xs text-white">Remote Peer</span>
+        </div>
+
+        <!-- Local Camera Preview -->
+        <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center">
+          <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
+          <span class="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-black/60 text-xs text-emerald-300">You (Camera Preview)</span>
+        </div>
+      </div>
+
+      <!-- Call Controls -->
+      <div class="mt-4 flex items-center justify-center gap-4 py-2">
+        <button onclick="toggleMute()" id="muteBtn" class="p-3.5 rounded-full bg-slate-800 hover:bg-slate-700 text-white transition">
+          <i data-lucide="mic" class="w-5 h-5"></i>
+        </button>
+        <button onclick="startVideoCall()" class="px-6 py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition">
+          <i data-lucide="phone-call" class="w-4 h-4"></i> Start P2P Video Call
+        </button>
+        <button onclick="endVideoCall()" class="p-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white transition">
+          <i data-lucide="phone-off" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Live GPS Map View -->
+    <section id="tab-map" class="hidden flex-1 flex flex-col h-full bg-slate-950 p-3 relative">
+      <div class="mb-2 flex items-center justify-between px-1">
+        <div>
+          <h2 class="text-sm font-bold text-white">Live GPS Radar Map</h2>
+          <p id="gpsCoordsText" class="text-xs text-slate-400">Tap "Locate Me" or "Simulate Drive" to broadcast coordinates</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="shareLiveLocation()" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold">Locate Me</button>
+          <button onclick="simulateMovement()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 text-xs font-semibold">Simulate Drive</button>
+        </div>
+      </div>
+      <div class="flex-1 rounded-xl overflow-hidden border border-slate-800 relative">
+        <div id="map"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Tab Navigation -->
+  <nav class="glass border-t border-slate-800 px-6 py-2 flex items-center justify-around z-30">
+    <button onclick="switchTab('chat')" id="nav-chat" class="flex flex-col items-center gap-1 text-indigo-400 font-semibold text-xs py-1">
+      <i data-lucide="message-square" class="w-5 h-5"></i>
+      <span>Chat</span>
+    </button>
+    <button onclick="switchTab('video')" id="nav-video" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white text-xs py-1">
+      <i data-lucide="video" class="w-5 h-5"></i>
+      <span>Video Call</span>
+    </button>
+    <button onclick="switchTab('map')" id="nav-map" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white text-xs py-1">
+      <i data-lucide="map" class="w-5 h-5"></i>
+      <span>Live Map</span>
+    </button>
+  </nav>
+
+  <!-- Connect Friend Modal -->
+  <div id="connectModal" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+    <div class="glass max-w-sm w-full rounded-2xl p-5 border border-slate-700 shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-white text-base">Connect with a Friend</h3>
+        <button onclick="closeConnectModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <p class="text-xs text-slate-300 mb-3">Share your ID with your friend, or enter your friend's ID below to link directly for P2P chat, video & GPS:</p>
+      <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 mb-3 flex items-center justify-between">
+        <span class="text-xs text-slate-400">Your ID:</span>
+        <span id="modalMyId" class="font-mono text-xs font-bold text-cyan-400 select-all">...</span>
+      </div>
+      <input id="remotePeerInput" type="text" placeholder="Enter Friend's ID (e.g. nexus-4821)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white mb-3 focus:outline-none focus:border-indigo-500" />
+      <div class="flex gap-2">
+        <button onclick="connectToFriend()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs">Link Now</button>
+        <button onclick="copyInviteLink()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs">WhatsApp Share</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // State
+    let peer = null;
+    let dataConn = null;
+    let currentCall = null;
+    let localStream = null;
+    let myPeerId = 'nexus-' + Math.floor(1000 + Math.random() * 9000);
+    let map = null;
+    let myMarker = null;
+    let friendMarker = null;
+    let myCoords = { lat: 19.0760, lng: 72.8777 }; // Mumbai default
+
+    // Initialize PeerJS for real P2P communication
+    function initPeer() {
+      peer = new Peer(myPeerId);
+      peer.on('open', (id) => {
+        document.getElementById('myPeerIdDisplay').innerText = id;
+        document.getElementById('modalMyId').innerText = id;
+        const badge = document.getElementById('statusBadge');
+        badge.innerText = 'Online Ready';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+
+        // Auto-connect if URL has ?friend=ID
+        const params = new URLSearchParams(window.location.search);
+        const friendId = params.get('friend');
+        if (friendId && friendId !== id) {
+          document.getElementById('remotePeerInput').value = friendId;
+          connectToFriend();
+        }
+      });
+
+      peer.on('connection', (conn) => {
+        dataConn = conn;
+        setupDataConnection();
+      });
+
+      peer.on('call', async (call) => {
+        if (confirm('Incoming Video Call from Friend! Accept?')) {
+          switchTab('video');
+          if (!localStream) await initLocalCamera();
+          call.answer(localStream);
+          handleCallStream(call);
+        }
+      });
+    }
+
+    function setupDataConnection() {
+      if (!dataConn) return;
+      dataConn.on('open', () => {
+        document.getElementById('connectedPeerLabel').innerHTML = `Connected P2P with: <strong class="text-emerald-400">${dataConn.peer}</strong>`;
+        appendMessage('System', `Connected directly with ${dataConn.peer}!`, false);
+        closeConnectModal();
+      });
+      dataConn.on('data', (payload) => {
+        if (payload.type === 'chat') {
+          appendMessage('Friend', payload.text, false);
+        } else if (payload.type === 'gps') {
+          appendMessage('Friend GPS', `Shared Live Location: ${payload.lat.toFixed(4)}, ${payload.lng.toFixed(4)}`, false, payload);
+          updateFriendMapMarker(payload.lat, payload.lng);
+        }
+      });
+    }
+
+    function connectToFriend() {
+      const targetId = document.getElementById('remotePeerInput').value.trim();
+      if (!targetId) return alert('Please enter your friend ID');
+      dataConn = peer.connect(targetId);
+      setupDataConnection();
+    }
+
+    // Messaging
+    function appendMessage(sender, text, isMe, gpsData = null) {
+      const box = document.getElementById('chatMessages');
+      const wrap = document.createElement('div');
+      wrap.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = `max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+        isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-bl-none'
+      }`;
+
+      let inner = `<div class="text-[10px] opacity-70 mb-0.5 font-semibold">${sender}</div><div>${text}</div>`;
+      if (gpsData) {
+        inner += `<button onclick="switchTab('map')" class="mt-2 px-2.5 py-1 rounded-lg bg-black/30 text-cyan-300 text-xs flex items-center gap-1">Open on Live Map</button>`;
+      }
+      bubble.innerHTML = inner;
+      wrap.appendChild(bubble);
+      box.appendChild(wrap);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      appendMessage('You', text, true);
+
+      if (dataConn && dataConn.open) {
+        dataConn.send({ type: 'chat', text });
+      } else {
+        // Smart AI Companion fallback when testing solo
+        setTimeout(() => {
+          appendMessage('Aarav (Smart Companion)', `Got your message: "${text}"! Share your ID (${myPeerId}) with a friend to chat P2P, or tap "Share GPS" to test the live radar map.`, false);
+        }, 700);
+      }
+    }
+
+    // Video Calling
+    async function initLocalCamera() {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('localVideo').srcObject = localStream;
+      } catch (e) {
+        alert('Camera/Mic permission needed for video calls.');
+      }
+    }
+
+    async function startVideoCall() {
+      switchTab('video');
+      if (!localStream) await initLocalCamera();
+      const targetId = (dataConn && dataConn.peer) || document.getElementById('remotePeerInput').value.trim();
+      if (!targetId) {
+        openConnectModal();
+        return;
+      }
+      const call = peer.call(targetId, localStream);
+      handleCallStream(call);
+    }
+
+    function handleCallStream(call) {
+      currentCall = call;
+      call.on('stream', (remoteStream) => {
+        const rv = document.getElementById('remoteVideo');
+        rv.srcObject = remoteStream;
+        rv.classList.remove('hidden');
+        document.getElementById('remotePlaceholder').classList.add('hidden');
+      });
+    }
+
+    function endVideoCall() {
+      if (currentCall) currentCall.close();
+      document.getElementById('remoteVideo').classList.add('hidden');
+      document.getElementById('remotePlaceholder').classList.remove('hidden');
+    }
+
+    function toggleMute() {
+      if (!localStream) return;
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        document.getElementById('muteBtn').classList.toggle('bg-rose-600', !audioTrack.enabled);
+      }
+    }
+
+    // Map & Live GPS
+    function initMap() {
+      if (map) return;
+      map = L.map('map').setView([myCoords.lat, myCoords.lng], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+      myMarker = L.marker([myCoords.lat, myCoords.lng]).addTo(map).bindPopup('You (Live GPS)').openPopup();
+    }
+
+    function shareLiveLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            broadcastCoords();
+          },
+          () => broadcastCoords()
+        );
+      } else {
+        broadcastCoords();
+      }
+    }
+
+    function broadcastCoords() {
+      document.getElementById('gpsCoordsText').innerText = `Your Live GPS: ${myCoords.lat.toFixed(4)}, ${myCoords.lng.toFixed(4)}`;
+      appendMessage('You (GPS)', `Live Location Shared: ${myCoords.lat.toFixed(4)}, ${myCoords.lng.toFixed(4)}`, true, myCoords);
+      if (map && myMarker) {
+        myMarker.setLatLng([myCoords.lat, myCoords.lng]);
+        map.panTo([myCoords.lat, myCoords.lng]);
+      }
+      if (dataConn && dataConn.open) {
+        dataConn.send({ type: 'gps', lat: myCoords.lat, lng: myCoords.lng });
+      }
+    }
+
+    function updateFriendMapMarker(lat, lng) {
+      initMap();
+      if (!friendMarker) {
+        friendMarker = L.marker([lat, lng]).addTo(map).bindPopup('Friend Live Location').openPopup();
+      } else {
+        friendMarker.setLatLng([lat, lng]);
+      }
+    }
+
+    function simulateMovement() {
+      myCoords.lat += (Math.random() - 0.5) * 0.004;
+      myCoords.lng += (Math.random() - 0.5) * 0.004;
+      broadcastCoords();
+    }
+
+    // Navigation & Modals
+    function switchTab(tab) {
+      ['chat', 'video', 'map'].forEach((t) => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+        const navBtn = document.getElementById('nav-' + t);
+        navBtn.className = t === tab
+          ? 'flex flex-col items-center gap-1 text-indigo-400 font-semibold text-xs py-1'
+          : 'flex flex-col items-center gap-1 text-slate-400 hover:text-white text-xs py-1';
+      });
+      if (tab === 'map') {
+        setTimeout(() => { initMap(); map.invalidateSize(); }, 150);
+      }
+      if (tab === 'video' && !localStream) {
+        initLocalCamera();
+      }
+    }
+
+    function openConnectModal() { document.getElementById('connectModal').classList.remove('hidden'); }
+    function closeConnectModal() { document.getElementById('connectModal').classList.add('hidden'); }
+
+    function copyInviteLink() {
+      const inviteText = `Join me on NexusConnect Pro for real-time Chat, Video Call & Live GPS! My Connection ID is: ${myPeerId}`;
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(inviteText)}`;
+      window.open(waUrl, '_blank');
+    }
+
+    // Boot
+    window.addEventListener('DOMContentLoaded', () => {
+      initPeer();
+      appendMessage('Aarav (Smart Companion)', 'Welcome to NexusConnect Pro! Your personal P2P ID is ready at the top. Send a message below or tap "Connect Friend" to link two phones directly.', false);
+    });
+  </script>
+</body>
+</html>
