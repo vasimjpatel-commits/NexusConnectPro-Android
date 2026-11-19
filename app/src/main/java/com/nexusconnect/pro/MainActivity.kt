@@ -4,15 +4,21 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.ViewGroup
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
@@ -23,10 +29,64 @@ class MainActivity : Activity() {
     companion object {
         private const val CAMERA_MIC_REQUEST = 410
         private const val LOCATION_REQUEST = 411
+        private const val SPLASH_DURATION_MS = 900L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        showBrandingScreen()
+        Handler(Looper.getMainLooper()).postDelayed(
+            { openExistingApp() },
+            SPLASH_DURATION_MS
+        )
+    }
+
+    private fun showBrandingScreen() {
+        val screen = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.WHITE)
+            setPadding(24, 24, 24, 24)
+        }
+
+        val name = TextView(this).apply {
+            text = "Vasim"
+            textSize = 28f
+            setTextColor(Color.rgb(32, 32, 32))
+            gravity = Gravity.CENTER
+        }
+        val appName = TextView(this).apply {
+            text = "NexusConnect Pro"
+            textSize = 21f
+            setTextColor(Color.rgb(32, 32, 32))
+            gravity = Gravity.CENTER
+            setPadding(0, 12, 0, 0)
+        }
+        val credit = TextView(this).apply {
+            text = "Designed by Vasim J Patel"
+            textSize = 13f
+            setTextColor(Color.rgb(110, 110, 110))
+            gravity = Gravity.CENTER
+            setPadding(0, 18, 0, 0)
+        }
+
+        screen.addView(name, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        screen.addView(appName, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        screen.addView(credit, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        setContentView(screen)
+    }
+
+    private fun openExistingApp() {
+        if (isFinishing || isDestroyed) return
 
         webView = WebView(this)
         webView.layoutParams = ViewGroup.LayoutParams(
@@ -56,7 +116,6 @@ class MainActivity : Activity() {
                         openExternal(url)
                         return true
                     }
-                    // Let normal https navigation stay inside the WebView
                     if (scheme == "http") {
                         openExternal(url)
                         return true
