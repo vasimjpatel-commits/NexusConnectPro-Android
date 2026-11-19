@@ -51,3 +51,23 @@ Do not use `localhost` as the API URL on a physical phone; it refers to the phon
 - [ ] Test video call with camera and microphone permission.
 - [ ] Test GPS permission and live location behavior.
 - [ ] Sign out and confirm the login screen returns.
+
+
+## Deploy the backend with Supabase + Railway
+
+This repository now includes `backend/railway.toml` for Railway. In Railway, create a project from this GitHub repository and set the service Root Directory to `/backend`. Railway should detect Node.js, run `npm install`, and use `npm start`. The health check is `/health`.
+
+Create a Supabase project and copy its PostgreSQL connection string from the database connection settings. Use a server-side connection string (prefer the session pooler when the hosting platform cannot use IPv6 direct connections). Set it only as the Railway `DATABASE_URL` secret. Do not place it in Android code or Git.
+
+Apply `backend/migrations/001_init.sql` to the Supabase database using its SQL editor. In Railway service variables, set:
+- `NODE_ENV=production`
+- `DATABASE_URL` = Supabase PostgreSQL connection string
+- `JWT_ACCESS_SECRET` = a new random secret of at least 32 bytes
+- `ACCESS_TOKEN_TTL=15m`
+- `REFRESH_TOKEN_DAYS=30`
+- `CORS_ORIGINS` = empty unless a specific trusted web origin is required
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` = Twilio Verify credentials (required for SMS OTP)
+
+After Railway deploys, test `https://YOUR-RAILWAY-DOMAIN/health`. Then update `AUTH_BASE_URL` in `app/build.gradle.kts` to that exact HTTPS origin and rebuild the APK.
+
+Supabase and Railway accounts must be connected/authorized before projects or deployments can be created. SMS OTP also requires a Twilio account and Verify service; no OTP should be represented as working until a real SMS arrives.
