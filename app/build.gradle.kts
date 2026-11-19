@@ -11,19 +11,19 @@ android {
         applicationId = "com.nexusconnect.pro"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+        // Replace with your deployed HTTPS API URL before building.
+        buildConfigField("String", "AUTH_BASE_URL", "\"https://api.example.com\"")
     }
-
+    buildFeatures { buildConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
-    // Minimal - pure Activity + WebView
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
