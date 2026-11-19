@@ -1,6 +1,6 @@
 # Build and test NexusConnect Pro
 
-This branch is a **debug-build candidate**, not a production release. It includes the existing WebView chat/video/GPS app behind the custom account-authentication screen. The Android build workflow packages a debug APK and uploads it as a GitHub Actions artifact.
+This branch is the current **debug-build candidate**, not a production release. It includes the existing WebView chat/video/GPS app behind the custom account-authentication screen. The Android build workflow packages a debug APK and uploads it as a GitHub Actions artifact.
 
 ## Build the APK in GitHub
 
