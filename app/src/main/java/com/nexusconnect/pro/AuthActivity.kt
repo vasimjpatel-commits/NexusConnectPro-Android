@@ -22,7 +22,7 @@ class AuthActivity:Activity(){
  private fun buildUi(){
   val root=LinearLayout(this).apply{orientation=1;setPadding(24,32,24,24);setBackgroundColor(Color.rgb(11,15,25))}
   val scroll=ScrollView(this);scroll.addView(root);setContentView(scroll)
-  root.addView(label("NexusConnect Pro",26f,Color.WHITE));root.addView(label("Sign in securely to continue",14f,Color.LTGRAY))
+  root.addView(label(getString(R.string.brand_startup_name),22f,Color.WHITE));root.addView(label(getString(R.string.app_name),26f,Color.WHITE));root.addView(label(getString(R.string.brand_creator_credit),12f,Color.LTGRAY));root.addView(label("Sign in securely to continue",14f,Color.LTGRAY))
   val tabs=LinearLayout(this).apply{orientation=0};tabs.addView(button("Email"){emailPanel.visibility=View.VISIBLE;phonePanel.visibility=View.GONE},LinearLayout.LayoutParams(0,-2,1f));tabs.addView(button("Phone OTP"){emailPanel.visibility=View.GONE;phonePanel.visibility=View.VISIBLE},LinearLayout.LayoutParams(0,-2,1f));root.addView(tabs)
   emailPanel=LinearLayout(this).apply{orientation=1}
   name=field("Full name (new account)");email=field("Email address");email.inputType=33;password=field("Password (10+ characters)");password.inputType=129
