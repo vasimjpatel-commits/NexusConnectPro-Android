@@ -13,12 +13,14 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.view.ViewGroup
+import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
     private var pendingWebPermission: PermissionRequest? = null
     private var pendingGeoOrigin: String? = null
     private var pendingGeoCallback: GeolocationPermissions.Callback? = null
+    private val authWorker = Executors.newSingleThreadExecutor()
 
     companion object {
         private const val CAMERA_MIC_REQUEST = 410
@@ -50,6 +52,10 @@ class MainActivity : Activity() {
                 request: WebResourceRequest
             ): Boolean {
                 val url = request.url
+                if (url.scheme == "nexusconnect" && url.host == "logout") {
+                    signOut()
+                    return true
+                }
                 val scheme = url.scheme ?: ""
                 if (scheme == "http" || scheme == "https" || scheme == "tel" || scheme == "mailto") {
                     if (url.host == "wa.me" || scheme == "tel" || scheme == "mailto") {
@@ -128,6 +134,18 @@ class MainActivity : Activity() {
         webView.loadUrl("file:///android_asset/index.html")
     }
 
+    private fun signOut() {
+        val refresh = AuthTokenStore.refresh(this)
+        authWorker.execute {
+            try { if (!refresh.isNullOrBlank()) AuthApi.logout(refresh) } catch (_: Exception) { }
+            AuthTokenStore.clear(this)
+            runOnUiThread {
+                startActivity(Intent(this, AuthActivity::class.java))
+                finish()
+            }
+        }
+    }
+
     private fun openExternal(uri: Uri) {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -185,6 +203,7 @@ class MainActivity : Activity() {
             webView.stopLoading()
             webView.destroy()
         }
+        authWorker.shutdown()
         super.onDestroy()
     }
 }
