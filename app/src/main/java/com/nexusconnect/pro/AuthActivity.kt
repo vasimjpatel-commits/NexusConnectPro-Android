@@ -17,7 +17,18 @@ class AuthActivity:Activity(){
  private lateinit var emailPanel:LinearLayout
  private lateinit var phonePanel:LinearLayout
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);window.statusBarColor=Color.rgb(11,15,25); buildUi()
-  AuthTokenStore.refresh(this)?.let{t->runAuth("Restoring session…"){val r=AuthApi.refresh(t);saveAndOpen(r)}}
+  AuthTokenStore.refresh(this)?.let{t->
+   runAuth("Restoring session…"){
+    try {
+     saveAndOpen(AuthApi.refresh(t))
+    } catch(e:AuthApiException) {
+     if(e.statusCode==401) {
+      AuthTokenStore.clear(this)
+      show("Your session has expired. Please sign in again.")
+     } else throw e
+    }
+   }
+  }
  }
  private fun buildUi(){
   val root=LinearLayout(this).apply{orientation=1;setPadding(24,32,24,24);setBackgroundColor(Color.rgb(11,15,25))}
