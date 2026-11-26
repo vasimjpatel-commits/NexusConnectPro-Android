@@ -2,6 +2,9 @@ package com.nexusconnect.pro
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+
+class AuthApiException(val statusCode: Int, message: String) : IllegalStateException(message)
+
 object AuthApi {
  private fun post(path:String,body:JSONObject):JSONObject {
   val c=URL(BuildConfig.AUTH_BASE_URL.trimEnd('/')+path).openConnection() as HttpURLConnection
@@ -9,9 +12,10 @@ object AuthApi {
   c.setRequestProperty("Content-Type","application/json"); c.setRequestProperty("Accept","application/json")
   return try {
    c.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
-   val stream=if(c.responseCode in 200..299)c.inputStream else c.errorStream
+   val responseCode=c.responseCode
+   val stream=if(responseCode in 200..299)c.inputStream else c.errorStream
    val j=JSONObject(stream?.bufferedReader()?.use{it.readText()} ?: "{}")
-   if(c.responseCode !in 200..299) throw IllegalStateException(j.optString("error","Authentication failed ("+c.responseCode+")"))
+   if(responseCode !in 200..299) throw AuthApiException(responseCode,j.optString("error","Authentication failed ($responseCode)"))
    j
   } finally {c.disconnect()}
  }
