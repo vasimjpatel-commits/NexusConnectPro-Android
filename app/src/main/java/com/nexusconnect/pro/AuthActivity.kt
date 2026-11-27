@@ -44,6 +44,7 @@ class AuthActivity:Activity(){
   phonePanel.addView(phone);phonePanel.addView(button("Send OTP"){runAuth("Requesting code…"){AuthApi.requestOtp(phone.text.toString().trim());show("OTP requested. Check your SMS.")}})
   phonePanel.addView(code);phonePanel.addView(button("Verify and sign in"){runAuth("Verifying…"){saveAndOpen(AuthApi.verifyOtp(phone.text.toString().trim(),code.text.toString().trim()))}})
   root.addView(phonePanel);status=label("",13f,Color.LTGRAY);root.addView(status)
+  if(BuildConfig.DEBUG){root.addView(button("Developer Test Mode (Skip Login)"){startActivity(Intent(this,MainActivity::class.java));finish()}.apply{setBackgroundColor(Color.rgb(16,185,129))})}
  }
  private fun emailAction(create:Boolean){val n=name.text.toString().trim();val e=email.text.toString().trim();val p=password.text.toString()
   if(e.isBlank()||p.isBlank()||(create&&n.isBlank())){show("Complete the required fields.");return}
