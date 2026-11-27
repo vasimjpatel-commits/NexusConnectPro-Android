@@ -14,7 +14,7 @@ android {
         versionCode = 2
         versionName = "1.1"
         // Replace with your deployed HTTPS API URL before building.
-        buildConfigField("String", "AUTH_BASE_URL", "\"https://api.example.com\"")
+        buildConfigField("String", "AUTH_BASE_URL", "\"https://nexusconnectpro-android-production.up.railway.app\"")
     }
     buildFeatures { buildConfig = true }
     compileOptions {
